@@ -1,0 +1,378 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>CravingAI</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+		<script src="assets/js/ia.js"></script>
+	</head>
+	<body>
+		<div id="page-wrapper">
+
+			<div class="wrapper">
+				<section class="panel color4-alt" id="dash">
+					<div class="intro joined">
+						<div class="fields">
+							<div class="field half">
+								<label for="inputs">Inputs</label>
+								<input type="number" name="inputs" value="2">
+							</div>
+							<div class="field half">
+								<label for="neurons">Neurons</label>
+								<input type="number" name="neurons" value="1">
+							</div>
+							<div class="field">
+								<label for="endpoint">Network Endpoint</label>
+								<div class="select-wrapper">
+									<select name="endpoint">
+										<option value="1">Manufacturing</option>
+									</select>
+								</div>
+							</div>
+							<div class="field">
+								<a href="#" class="button primary">Activate Network</a>
+							</div>
+						</div>
+					</div>
+					<div class="inner">						
+						<div class="table-wrapper truth-table">
+							<table>
+								<thead>
+									<tr></tr>
+								</thead>
+								<tbody>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</section>
+			</div>
+
+			<template id="neuron">
+				<div class="wrapper neuron">
+					<section class="panel color4-alt" id="perceptron">
+						<div class="inner columns divided">
+							<div class="span-3-25">
+								<div class="fields">
+									<div class="field half">
+										<label for="name">Name</label>
+										<input type="text" name="name" value="Neuron #nid">
+									</div>
+									<div class="field half">
+										<label for="size">Size</label>
+										<input type="number" name="size" value="2">
+									</div>
+									<div class="field half">
+										<label for="threshold">Threshold</label>
+										<input type="number" name="threshold" value="0">
+									</div>
+									<div class="field half">
+										<label for="adjustment">Adjustment</label>
+										<input type="number" name="adjustment" value="1">
+									</div>
+									<div class="field half">
+										<label for="weight">Weight</label>
+										<input type="number" name="weight" value="0">
+									</div>
+									<div class="field half">
+										<label for="train">Train</label>
+										<input type="number" name="train" value="100">
+									</div>
+									<div class="field">
+										<a href="#" class="button primary">Train</a>
+									</div>
+								</div>
+								<h4>Memory</h4>
+								<div class="table-wrapper memory-table">
+									<table>
+										<thead>
+											<tr></tr>
+										</thead>
+										<tbody></tbody>
+									</table>
+								</div>
+							</div>
+							<div class="span-3-25">
+								<div class="table-wrapper train-table">
+									<table>
+										<thead>
+											<tr></tr>
+										</thead>
+										<tbody></tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+					</section>
+				</div>
+			</template>
+		</div>
+
+		<script>
+			;(function () {
+
+				// --------------------------------------------------------------------
+
+				const ui 		= document.getElementById('page-wrapper'),
+							dash 	= ui.querySelector('#dash'),
+							tpl 	= ui.querySelector('#neuron'),
+							IA    = {};
+
+				// --------------------------------------------------------------------
+				
+				dash.querySelector('input[name="inputs"]')
+						.addEventListener('input', setupUI);
+						
+				dash.querySelector('input[name="neurons"]')
+						.addEventListener('input', setupUI);
+						
+				dash.querySelector('.button')
+						.addEventListener('click', activateNeuron);
+				
+				setupUI();
+				
+				// --------------------------------------------------------------------
+
+				function setupUI() {
+					const inputs = Number(dash.querySelector('input[name="inputs"]').value),
+								neurons = Number(dash.querySelector('input[name="neurons"]').value);
+					
+					for (const _ in IA) {
+						delete IA[_];
+					}
+					
+					makeNeurons(neurons, inputs);					
+					makeTruth(inputs);
+					populateInputs();
+				}
+				
+				// --------------------------------------------------------------------
+
+				function makeNeurons(count, inputs) {
+
+					ui.querySelectorAll('.neuron')
+						.forEach((n) => (n.parentNode.removeChild(n)));
+
+					for (let nid = 0; nid < count; nid++) {
+						let n = document.importNode(tpl.content, true);
+						ui.appendChild(n);
+						
+						setupNeuron(nid, ui.lastElementChild);
+					}
+					
+				}
+
+				// --------------------------------------------------------------------
+				
+				function makeTruth(count) {
+					const tHeader	= dash.querySelector('thead tr'),
+								tBody  	= dash.querySelector('tbody');
+
+					tHeader.innerHTML = Array(count)
+						.fill(0)
+						.map((_, i) => ('<th>#' + i + '</th>'))
+						.join('') +
+						'<th>OUT</th>';
+
+					tBody.innerHTML = Array(Math.pow(2, count))
+						.fill(0)
+						.map((_, r) => ('<tr>' +
+															Array(count)
+																.fill(0)
+																.map((_, c) => ('<td>' +
+																									'<input type="checkbox" id="in-' + r + '-' + c + '" class="color2" '+(['', 'checked'][Number(((('0'.repeat(count)) + r.toString(2)).substr(-count))[c])])+' disabled>' +
+																									'<label for="in-' + r + '-' + c + '"></label>' +
+																								'</td>'))
+																.join('') +
+																'<td>' +
+																	'<input type="checkbox" id="out-' + r + '" class="color2" disabled>' +
+																	'<label for="out-' + r + '"></label>' +
+																'</td>' +
+														'</tr>'))
+						.join('');					
+				}
+
+				// --------------------------------------------------------------------
+				
+				function populateInputs() {
+					const inputs = Number(dash.querySelector('input[name="inputs"]').value),
+								neurons = Number(dash.querySelector('input[name="neurons"]').value);
+					
+					const optsInputs 	= '<opgroup label="Inputs">' + 
+																Array(inputs)
+																	.fill(0)
+																	.map((_, iid) => ('<option value="iid-' + iid + '">#' + iid + '</option>')) +
+															'</optgroup>',
+								optsNeurons = '<opgroup label="Neurons">' + 
+																Array(neurons)
+																	.fill(0)
+																	.map((_, nid) => ('<option value="nid-' + nid + '">' + ui.querySelector('#nid-' + nid + ' input[name="name"]').value + '</option>')) +
+															'</optgroup>';
+					
+					ui.querySelectorAll('.neuron select.input')
+						.forEach((s) => {
+							let sIndex = s.selectedIndex;							
+							s.innerHTML = optsInputs + optsNeurons;
+							s.selectedIndex = sIndex;							
+							s.querySelector('option[value="nid-' + s.dataset.nid + '"]').disabled = true;
+						});
+					
+					dash.querySelectorAll('select[name="endpoint"]')
+						.forEach((s) => {
+							let sIndex = s.selectedIndex;							
+							s.innerHTML = optsNeurons;
+							s.selectedIndex = sIndex;							
+						});
+					
+				}
+				
+				// --------------------------------------------------------------------
+
+				function setupNeuron(nid, root) {
+					const train = root.querySelector('.train-table table'),
+								memory = root.querySelector('.memory-table table'),
+								iSize = root.querySelector('input[name="size"]'),
+								iThreshold = root.querySelector('input[name="threshold"]'),
+								iAdjustment = root.querySelector('input[name="adjustment"]'),
+								iWeight = root.querySelector('input[name="weight"]'),
+								iTrain = root.querySelector('input[name="train"]'),
+								iName = root.querySelector('input[name="name"]'),
+								iButton = root.querySelector('.button');
+					
+					root.id = 'nid-' + nid;
+					iName.value = 'Neuron #' + nid;
+					
+					function updateTrain(populate) {
+						const tHeader	= train.querySelector('thead tr'),
+									tBody  	= train.querySelector('tbody'),
+									mHeader = memory.querySelector('thead tr'),
+									mBody 	= memory.querySelector('tbody');
+
+						tHeader.innerHTML = Array(Number(iSize.value))
+							.fill(0)
+							.map((_, i) => ('<th><div class="select-wrapper"><select class="input" data-nid="' + nid + '"></select></div></th>'))
+							.join('') +
+							'<th>OUT</th>';
+
+						mHeader.innerHTML = Array(Number(iSize.value))
+							.fill(0)
+							.map((_, i) => ('<th>#' + i + '</th>'))
+							.join('') +
+							'<th>W</th>';
+
+						mBody.innerHTML = '';
+
+						tBody.innerHTML = Array(Math.pow(2, Number(iSize.value)))
+							.fill(0)
+							.map((_, r) => ('<tr>' +
+																Array(Number(iSize.value))
+																	.fill(0)
+																	.map((_, c) => ('<td>' +
+																										'<input type="checkbox" id="in-' + nid + '-' + r + '-' + c + '" class="color2" '+(['', 'checked'][Number(((('0'.repeat(Number(iSize.value))) + r.toString(2)).substr(-Number(iSize.value)))[c])])+' disabled>' +
+																										'<label for="in-' + nid + '-' + r + '-' + c + '"></label>' +
+																									'</td>'))
+																	.join('') +
+																	'<td>' +
+																		'<input type="checkbox" id="out-' + nid + '-' + r + '" class="color2">' +
+																		'<label for="out-' + nid + '-' + r + '"></label>' +
+																	'</td>' +
+															'</tr>'))
+							.join('');
+							
+							if (populate) {
+								populateInputs();
+							}
+					}
+
+					function trainIA() {
+						const mBody = memory.querySelector('tbody'),
+									iaid = 'nid-' + nid;
+						
+						IA[iaid] = new Neuron(Number(iSize.value), Number(iThreshold.value), Number(iAdjustment.value), Number(iWeight.value));
+
+						let table = [];
+
+						train.querySelectorAll('.train-table tbody tr')
+							.forEach(function(row) {
+								let o = row.querySelector('td:last-child input').checked,
+										i = [];
+
+								row.querySelectorAll('td:not(:last-child) input')
+									 .forEach(function(input){
+											i.push(Number(input.checked));
+									 })
+
+								table.push({ i: i, o: o });
+							});
+
+						if ( IA[iaid].train(table, Number(iTrain.value)) ) {
+							mBody.innerHTML = IA[iaid].memory
+								.map((_) => ('<th>' + _ + '</th>'))
+								.join('') +
+								'<th>' + IA[iaid].weight + '</th>';
+						} else {
+							mBody.innerHTML = '<th colspan="' + (IA[iaid].memory.length + 1) + '">No se puede entrenar.</th>';
+						}
+					}
+
+					iName.addEventListener('input', populateInputs);
+					iSize.addEventListener('input', () => (updateTrain(true)));
+					iButton.addEventListener('click', function(evt){
+						evt.preventDefault();
+						trainIA();
+					});
+					
+					updateTrain();
+				}
+				
+				// --------------------------------------------------------------------				
+				
+				function activateNeuron() {
+					const inputs 		= Number(dash.querySelector('input[name="inputs"]').value),
+								neurons 	= Number(dash.querySelector('input[name="neurons"]').value),
+								endpoint 	= dash.querySelector('select[name="endpoint"]').value,
+								neuron		= ui.querySelector('#' + endpoint),
+								truth  		= dash.querySelectorAll('tbody tr');
+								
+					
+					const nNetwork = new Network(IA[endpoint], getNetworkInput(neuron));					
+					
+					truth.forEach((r) => {
+						const input = [];
+						
+						r.querySelectorAll('td:not(:last-child) input')
+							.forEach((i) => (input.push(Number(i.checked))));
+							
+						console.log(input);						
+						r.querySelector('td:last-child input').checked = nNetwork.active(input);
+					});
+				
+				}
+				
+				// --------------------------------------------------------------------
+				
+				function getNetworkInput(neuron) {
+					const input = [];
+				
+					neuron.querySelectorAll('select.input')
+						.forEach((s, i) => {
+							if (s.value.indexOf('iid-') === 0) {
+								input.push(Number(s.value.split('-').pop()));							
+							}
+							
+							if (s.value.indexOf('nid-') === 0) {
+								input.push(new Network(IA[s.value], getNetworkInput(ui.querySelector('#' + s.value))));							
+							}
+						});
+
+					return input;
+				}
+				
+				// --------------------------------------------------------------------
+			})();
+
+		</script>
+	</body>
+</html>
